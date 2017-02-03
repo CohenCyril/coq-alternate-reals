@@ -1,0 +1,13 @@
+sudo: required
+dist: trusty
+language: coq
+cache:
+  apt: true
+  directories:
+  - $HOME/.opam
+install:
+- scripts/travis.sh
+before_cache:
+- scripts/travis-cache.sh
+script:
+- opam config exec -- make
