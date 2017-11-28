@@ -123,6 +123,7 @@ Proof. by apply/introF/asboolP. Qed.
 Lemma is_true_inj : injective is_true.
 Proof. by move=> [] []; rewrite ?(trueE, falseE) ?propeqE; tauto. Qed.
 
+
 (* -------------------------------------------------------------------- *)
 Lemma asbool_equiv_eq {P Q : Prop} : (P <-> Q) -> `[<P>] = `[<Q>].
 Proof. by rewrite -propeqE => ->. Qed.
@@ -253,320 +254,222 @@ Lemma notLR P Q : (P = ~ Q) -> (~ P) = Q. Proof. exact: canLR notK. Qed.
 
 Lemma notRL P Q : (~ P) = Q -> P = ~ Q. Proof. exact: canRL notK. Qed.
 
-(* -------------------------------------------------------------------- *)
-(* assia : let's see if we need the simplpred machinery. In any case, we sould
-   first try definitions + appropriate Arguments setting to see whether these
-   can replace the canonical structures machinery. *)
+(****** to reorganize ********)
 
-Definition predp T := T -> Prop.
-
-Identity Coercion fun_of_pred : predp >-> Funclass.
-
-Definition relp T := T -> predp T.
-
-Identity Coercion fun_of_rel : rel >-> Funclass.
-
-Notation xpredp0 := (fun _ => False).
-Notation xpredpT := (fun _ => True).
-Notation xpredpI := (fun (p1 p2 : predp _) x => p1 x /\ p2 x).
-Notation xpredpU := (fun (p1 p2 : predp _) x => p1 x \/ p2 x).
-Notation xpredpC := (fun (p : predp _) x => ~ p x).
-Notation xpredpD := (fun (p1 p2 : predp _) x => ~ p2 x /\ p1 x).
-Notation xpreimp := (fun f (p : predp _) x => p (f x)).
-Notation xrelpU := (fun (r1 r2 : relp _) x y => r1 x y \/ r2 x y).
-
-(* -------------------------------------------------------------------- *)
-Definition pred0p (T : Type) (P : predp T) : bool := `[<P =1 xpredp0>].
-Prenex Implicits pred0p.
-
-Lemma pred0pP  (T : Type) (P : predp T) : reflect (P =1 xpredp0) (pred0p P).
-Proof. by apply: (iffP (asboolP _)). Qed.
-
-(* -------------------------------------------------------------------- *)
-Module BoolQuant.
-
-Inductive box := Box of bool.
-
-Bind    Scope box_scope with box.
-Delimit Scope box_scope with P.
-
-Definition idbox {T : Type} (B : box) := fun (x : T) => B.
-
-Definition unbox {T : Type} (B : T -> box) : bool :=
-  asbool (forall x : T, let: Box b := B x in b).
-
-Notation "F ^*" := (Box F) (at level 2).
-Notation "F ^~" := (~~ F) (at level 2).
-
-Section Definitions.
-
-Variable T : Type.
-Implicit Types (B : box) (x y : T).
-
-Definition quant0p Bp := pred0p (fun x : T => let: F^* := Bp x x in F).
-(* The first redundant argument protects the notation from  Coq's K-term      *)
-(* display kludge; the second protects it from simpl and /=.                  *)
-Definition ex B x y := B.
-(* Binding the predicate value rather than projecting it prevents spurious    *)
-(* unfolding of the boolean connectives by unification.                       *)
-Definition all B x y := let: F^* := B in F^~^*.
-Definition all_in C B x y := let: F^* := B in (C ==> F)^~^*.
-Definition ex_in C B x y :=  let: F^* := B in (C && F)^*.
-
-End Definitions.
-
-
-Notation "`[ x | B ]" := (quant0p (fun x => B x)) (at level 0, x ident).
-Notation "`[ x : T | B ]" := (quant0p (fun x : T => B x)) (at level 0, x ident).
-
-Module Exports.
-
-Delimit Scope quant_scope with Q. (* Bogus, only used to declare scope. *)
-Bind Scope quant_scope with box.
-
-Notation ", F" := F^* (at level 200, format ", '/ '  F") : quant_scope.
-
-Notation "`[ 'forall' x B ]" := `[x | all B]
-  (at level 0, x at level 99, B at level 200,
-   format "`[ '[hv' 'forall'  x B ] ']'") : bool_scope.
-
-Notation "`[ 'forall' x : T B ]" := `[x : T | all B]
-  (at level 0, x at level 99, B at level 200, only parsing) : bool_scope.
-Notation "`[ 'forall' ( x | C ) B ]" := `[x | all_in C B]
-  (at level 0, x at level 99, B at level 200,
-   format "`[ '[hv' '[' 'forall'  ( x '/  '  |  C ) ']' B ] ']'") : bool_scope.
-Notation "`[ 'forall' ( x : T | C ) B ]" := `[x : T | all_in C B]
-  (at level 0, x at level 99, B at level 200, only parsing) : bool_scope.
-Notation "`[ 'forall' x 'in' A B ]" := `[x | all_in (x \in A) B]
-  (at level 0, x at level 99, B at level 200,
-   format "`[ '[hv' '[' 'forall'  x '/  '  'in'  A ']' B ] ']'") : bool_scope.
-Notation "`[ 'forall' x : T 'in' A B ]" := `[x : T | all_in (x \in A) B]
-  (at level 0, x at level 99, B at level 200, only parsing) : bool_scope.
-Notation ", 'forall' x B" := `[x | all B]^*
-  (at level 200, x at level 99, B at level 200,
-   format ", '/ '  'forall'  x B") : quant_scope.
-Notation ", 'forall' x : T B" := `[x : T | all B]^*
-  (at level 200, x at level 99, B at level 200, only parsing) : quant_scope.
-Notation ", 'forall' ( x | C ) B" := `[x | all_in C B]^*
-  (at level 200, x at level 99, B at level 200,
-   format ", '/ '  '[' 'forall'  ( x '/  '  |  C ) ']' B") : quant_scope.
-Notation ", 'forall' ( x : T | C ) B" := `[x : T | all_in C B]^*
-  (at level 200, x at level 99, B at level 200, only parsing) : quant_scope.
-Notation ", 'forall' x 'in' A B" := `[x | all_in (x \in A) B]^*
-  (at level 200, x at level 99, B at level 200,
-   format ", '/ '  '[' 'forall'  x '/  '  'in'  A ']' B") : bool_scope.
-Notation ", 'forall' x : T 'in' A B" := `[x : T | all_in (x \in A) B]^*
-  (at level 200, x at level 99, B at level 200, only parsing) : bool_scope.
-
-Notation "`[ 'exists' x B ]" := `[x | ex B]^~
-  (at level 0, x at level 99, B at level 200,
-   format "`[ '[hv' 'exists'  x B ] ']'") : bool_scope.
-Notation "`[ 'exists' x : T B ]" := `[x : T | ex B]^~
-  (at level 0, x at level 99, B at level 200, only parsing) : bool_scope.
-Notation "`[ 'exists' ( x | C ) B ]" := `[x | ex_in C B]^~
-  (at level 0, x at level 99, B at level 200,
-   format "`[ '[hv' '[' 'exists'  ( x '/  '  |  C ) ']' B ] ']'") : bool_scope.
-Notation "`[ 'exists' ( x : T | C ) B ]" := `[x : T | ex_in C B]^~
-  (at level 0, x at level 99, B at level 200, only parsing) : bool_scope.
-Notation "`[ 'exists' x 'in' A B ]" := `[x | ex_in (x \in A) B]^~
-  (at level 0, x at level 99, B at level 200,
-   format "`[ '[hv' '[' 'exists'  x '/  '  'in'  A ']' B ] ']'") : bool_scope.
-Notation "`[ 'exists' x : T 'in' A B ]" := `[x : T | ex_in (x \in A) B]^~
-  (at level 0, x at level 99, B at level 200, only parsing) : bool_scope.
-Notation ", 'exists' x B" := `[x | ex B]^~^*
-  (at level 200, x at level 99, B at level 200,
-   format ", '/ '  'exists'  x B") : quant_scope.
-Notation ", 'exists' x : T B" := `[x : T | ex B]^~^*
-  (at level 200, x at level 99, B at level 200, only parsing) : quant_scope.
-Notation ", 'exists' ( x | C ) B" := `[x | ex_in C B]^~^*
-  (at level 200, x at level 99, B at level 200,
-   format ", '/ '  '[' 'exists'  ( x '/  '  |  C ) ']' B") : quant_scope.
-Notation ", 'exists' ( x : T | C ) B" := `[x : T | ex_in C B]^~^*
-  (at level 200, x at level 99, B at level 200, only parsing) : quant_scope.
-Notation ", 'exists' x 'in' A B" := `[x | ex_in (x \in A) B]^~^*
-  (at level 200, x at level 99, B at level 200,
-   format ", '/ '  '[' 'exists'  x '/  '  'in'  A ']' B") : bool_scope.
-Notation ", 'exists' x : T 'in' A B" := `[x : T | ex_in (x \in A) B]^~^*
-  (at level 200, x at level 99, B at level 200, only parsing) : bool_scope.
-
-End Exports.
-
-End BoolQuant.
-Export BoolQuant.Exports.
-
-Open Scope quant_scope.
-
-(* -------------------------------------------------------------------- *)
-Section QuantifierCombinators.
-
-Variables (T : Type) (P : pred T) (PP : predp T).
-Hypothesis viewP : forall x, reflect (PP x) (P x).
-
-Lemma existsPP : reflect (exists x, PP x) `[exists x, P x].
+Definition dep_arrow_eq (T : eqType) (T' : T -> eqType)
+   (f g : forall x : T, T' x) := `[<f = g>].
+Lemma dep_arrow_eqP (T : eqType) (T' : T -> eqType) : Equality.axiom (@dep_arrow_eq T T').
 Proof.
-apply: (iffP idP).
-  move/asboolP; (* oops notation! *) apply: contrapR => nh x /=; apply: notTE.
-  by apply: contrap nh => /viewP Px; exists x.
-case=> x PPx; apply/asboolP=> /(_ x) [] /notT /=; rewrite -/(not (~ P x)) notK.
-exact/viewP.
+by move=> f g; apply: (iffP idP) => [/asboolP|->]; last by apply/asboolP.
 Qed.
 
-Lemma forallPP : reflect (forall x, PP x) `[forall x, P x].
+Definition dep_arrow_eqMixin (T : eqType) (T' : T -> eqType) := EqMixin (@dep_arrow_eqP T T').
+Definition dep_arrow_eqType  (T : eqType) (T' : T -> eqType) :=
+  EqType (forall x : T, T' x) (@dep_arrow_eqMixin T T').
+Canonical arrow_eqType (T : eqType) (T' : eqType) :=
+  EqType (T -> T') (@dep_arrow_eqMixin T _).
+
+Axiom arrow_choiceMixin : forall T T' : Type, Choice.mixin_of (T -> T').
+Canonical arrow_choiceType (T : choiceType) (T' : choiceType) :=
+  ChoiceType (T -> T') (@arrow_choiceMixin T T').
+
+Reserved Notation "A `&` B"  (at level 48, left associativity).
+Reserved Notation "A `*` B"  (at level 46, left associativity).
+Reserved Notation "A `+` B"  (at level 54, left associativity).
+Reserved Notation "A +` B"  (at level 54, left associativity).
+Reserved Notation "A `|` B" (at level 52, left associativity).
+Reserved Notation "a |` A" (at level 52, left associativity).
+Reserved Notation "A `\` B" (at level 50, left associativity).
+Reserved Notation "A `\ b" (at level 50, left associativity).
+
+Definition set A := A -> Prop.
+Definition in_set T (P : set T) : pred T := [pred x | `[<P x>]].
+Canonical set_predType T := @mkPredType T (set T) (@in_set T).
+
+Lemma in_setE T (P : set T) x : x \in P = P x :> Prop.
+Proof. by rewrite propeqE; split => [] /asboolP. Qed.
+
+Bind Scope classical_set_scope with set.
+Local Open Scope classical_set_scope.
+
+Notation "[ 'set' x : T | P ]" := ((fun x => P) : set T)
+  (at level 0, x at level 99, only parsing) : classical_set_scope.
+Notation "[ 'set' x | P ]" := [set x : _ | P]
+  (at level 0, x, P at level 99, format "[ 'set'  x  |  P ]") : classical_set_scope.
+
+Notation "[ 'set' E | x 'in' A ]" := [set y | exists2 x, A x & E = y]
+  (at level 0, E, x at level 99,
+   format "[ '[hv' 'set'  E '/ '  |  x  'in'  A ] ']'") : classical_set_scope.
+Notation "[ 'set' E | x 'in' A & y 'in' B ]" := [set z | exists2 x, A x & exists2 y, B y & E = z]
+  (at level 0, E, x at level 99,
+   format "[ '[hv' 'set'  E '/ '  |  x  'in'  A  &  y  'in'  B ] ']'") : classical_set_scope.
+
+Definition image {A B} (f : A -> B) (X : set A) : set B :=
+  [set f a | a in X].
+
+Definition preimage {A B} (f : A -> B) (X : set B) : set A := [set a | X (f a)].
+Arguments preimage A B f X / a.
+
+Definition setT {A} := [set _ : A | True].
+Definition set0 {A} := [set _ : A | False].
+Definition set1 {A} (x : A) := [set a : A | a = x].
+Definition setI {A} (X Y : set A) := [set a | X a /\ Y a].
+Definition setU {A} (X Y : set A) := [set a | X a \/ Y a].
+Definition nonempty {A} (X : set A) := exists x, X x.
+Definition setC {A} (X : set A) := [set a | ~ X a].
+Definition setD {A} (X Y : set A) := [set a | X a /\ ~ Y a].
+Definition setM {A B} (X : set A) (Y : set B) := [set x | X x.1 /\ Y x.2].
+Definition fst_set {A B} (X : set (A * B)) := [set x | exists y, X (x, y)].
+Definition snd_set {A B} (X : set (A * B)) := [set y | exists x, X (x, y)].
+
+Notation "[ 'set' 'of' F ]" := [set F i | i in setT]
+  (at level 0,
+   format "[ 'set'  'of'  F ]") : classical_set_scope.
+
+Notation "[ 'set' a ]" := (set1 a)
+  (at level 0, a at level 99, format "[ 'set'  a ]") : classical_set_scope.
+Notation "[ 'set' a : T ]" := [set (a : T)]
+  (at level 0, a at level 99, format "[ 'set'  a   :  T ]") : classical_set_scope.
+Notation "A `|` B" := (setU A B) : classical_set_scope.
+Notation "a |` A" := ([set a] `|` A) : classical_set_scope.
+Notation "[ 'set' a1 ; a2 ; .. ; an ]" := (setU .. (a1 |` [set a2]) .. [set an])
+  (at level 0, a1 at level 99,
+   format "[ 'set'  a1 ;  a2 ;  .. ;  an ]") : classical_set_scope.
+Notation "A `&` B" := (setI A B) : classical_set_scope.
+Notation "A `*` B" := (setM A B) : classical_set_scope.
+Notation "A .`1" := (fst_set A)
+  (at level 2, left associativity, format "A .`1") : classical_set_scope.
+Notation "A .`2" := (snd_set A)
+  (at level 2, left associativity, format "A .`2") : classical_set_scope.
+Notation "~` A" := (setC A) (at level 35, right associativity) : classical_set_scope.
+Notation "[ 'set' ~ a ]" := (~` [set a])
+  (at level 0, format "[ 'set' ~  a ]") : classical_set_scope.
+Notation "A `\` B" := (setD A B) : classical_set_scope.
+Notation "A `\ a" := (A `\` [set a]) : classical_set_scope.
+
+Definition bigsetI A I (P : set I) (X : I -> set A) :=
+  [set a | forall i, P i -> X i a].
+Definition bigsetU A I (P : set I) (X : I -> set A) :=
+  [set a | exists2 i, P i & X i a].
+
+Notation "\bigcup_ ( i 'in' P ) F" :=
+  (bigsetU P (fun i => F))
+  (at level 41, F at level 41, i, P at level 50,
+           format "'[' \bigcup_ ( i  'in'  P ) '/  '  F ']'")
+ : classical_set_scope.
+Notation "\bigcup_ ( i : T ) F" :=
+  (\bigcup_(i in @setT T) F)
+  (at level 41, F at level 41, i at level 50,
+           format "'[' \bigcup_ ( i  :  T ) '/  '  F ']'")
+ : classical_set_scope.
+Notation "\bigcup_ i F" :=
+  (\bigcup_(i : _) F)
+  (at level 41, F at level 41, i at level 0,
+           format "'[' \bigcup_ i '/  '  F ']'")
+ : classical_set_scope.
+
+Notation "\bigcap_ ( i 'in' P ) F" :=
+  (bigsetI P (fun i => F))
+  (at level 41, F at level 41, i, P at level 50,
+           format "'[' \bigcap_ ( i  'in'  P ) '/  '  F ']'")
+ : classical_set_scope.
+Notation "\bigcap_ ( i : T ) F" :=
+  (\bigcap_(i in @setT T) F)
+  (at level 41, F at level 41, i at level 50,
+           format "'[' \bigcap_ ( i  :  T ) '/  '  F ']'")
+ : classical_set_scope.
+Notation "\bigcap_ i F" :=
+  (\bigcap_(i : _) F)
+  (at level 41, F at level 41, i at level 0,
+           format "'[' \bigcap_ i '/  '  F ']'")
+ : classical_set_scope.
+
+Definition subset {A} (X Y : set A) := forall a, X a -> Y a.
+
+Notation "A `<=` B" := (subset A B) (at level 70, no associativity)
+ : classical_set_scope.
+Notation "A `<=>` B" := ((A `<=` B) /\ (B `<=` A)) (at level 70, no associativity)
+ : classical_set_scope.
+Notation "f @^-1` A" := (preimage f A) (at level 24) : classical_set_scope.
+Notation "f @` A" := (image f A) (at level 24) : classical_set_scope.
+Notation "A !=set0" := (nonempty A) (at level 80) : classical_set_scope.
+
+Lemma imageP {A B} (f : A -> B) (X : set A) a : X a -> (f @` X) (f a).
+Proof. by exists a. Qed.
+
+Lemma sub_image_setI {A B} (f : A -> B) (X Y : set A) :
+  f @` (X `&` Y) `<=` f @` X `&` f @` Y.
+Proof. by move=> b [x [Xa Ya <-]]; split; apply: imageP. Qed.
+Arguments sub_image_setI {A B f X Y} a _.
+
+Lemma nonempty_image {A B} (f : A -> B) (X : set A) :
+  f @` X !=set0 -> X !=set0.
+Proof. by case=> b [a]; exists a. Qed.
+
+Lemma nonempty_preimage {A B} (f : A -> B) (X : set B) :
+  f @^-1` X !=set0 -> X !=set0.
+Proof. by case=> [a ?]; exists (f a). Qed.
+
+Lemma subset_empty {A} (X Y : set A) : X `<=` Y -> X !=set0 -> Y !=set0.
+Proof. by move=> sXY [x Xx]; exists x; apply: sXY. Qed.
+
+Lemma subset_trans {A} (Y X Z : set A) : X `<=` Y -> Y `<=` Z -> X `<=` Z.
+Proof. by move=> sXY sYZ ? ?; apply/sYZ/sXY. Qed.
+
+Lemma nonempty_preimage_setI {A B} (f : A -> B) (X Y : set B) :
+  (f @^-1` (X `&` Y)) !=set0 <-> (f @^-1` X `&` f @^-1` Y) !=set0.
+Proof. by split; case=> x ?; exists x. Qed.
+
+Lemma subsetC {A} (X Y : set A) : X `<=` Y -> ~` Y `<=` ~` X.
+Proof. by move=> sXY ? nYa ?; apply/nYa/sXY. Qed.
+
+Lemma subsetU {A} (X Y Z : set A) : X `<=` Z -> Y `<=` Z -> X `|` Y `<=` Z.
+Proof. by move=> sXZ sYZ a; apply: or_ind; [apply: sXZ|apply: sYZ]. Qed.
+
+Lemma setDE {A} (X Y : set A) : X `\` Y = X `&` ~` Y.
+Proof. by []. Qed.
+
+Definition is_prop {A} (X : set A) := forall x y, X x -> X y -> x = y.
+Definition is_fun {A B} (f : A -> B -> Prop) := all (is_prop \o f).
+Definition is_total {A B} (f : A -> B -> Prop) := all (nonempty \o f).
+Definition is_totalfun {A B} (f : A -> B -> Prop) :=
+  forall x, nonempty (f x) /\ is_prop (f x).
+
+Definition xget {T : choiceType} x0 (P : set T) : T :=
+  if pselect (exists x : T, `[<P x>]) isn't left exP then x0
+  else projT1 (sigW exP).
+
+Lemma xgetPex {T : choiceType} x0 (P : set T) : (exists x, P x) -> P (xget x0 P).
 Proof.
-apply: (iffP idP).
-  by move/asboolP=> h x; move/notT: (h x)=> /= /negP; rewrite negbK => /viewP.
-move=> h; apply/asboolP=> x; apply/notTE/negP; rewrite negbK; exact/viewP.
+rewrite /xget; case: pselect => [|nexP [x Px]]; last first.
+  by exfalso; apply: nexP; exists x; apply/asboolP.
+by move=> p; case: sigW=> {p} /= x /asboolP.
 Qed.
 
-End QuantifierCombinators.
+Lemma xgetP {T : choiceType} x0 (P : set T) (x : T): P x -> P (xget x0 P).
+Proof. by move=> Px; apply: xgetPex; exists x. Qed.
 
-Section PredQuantifierCombinators.
+Lemma xget_prop {T : choiceType} x0 (P : set T) (x : T) :
+  P x -> is_prop P -> xget x0 P = x.
+Proof. by move=> Px /(_ _ _ (xgetP x0 Px) Px). Qed.
 
-Variables (T : Type) (P : pred T).
+Lemma xget_unique  {T : choiceType} x0 (P : set T) (x : T) :
+  P x -> (forall y, P y -> y = x) -> xget x0 P = x.
+Proof. by move=> /xget_prop gPx eqx; apply: gPx=> y z /eqx-> /eqx. Qed.
 
-Lemma existsbP : reflect (exists x, P x) `[exists x, P x].
-Proof. exact: existsPP (fun x => @idP (P x)). Qed.
-
-Lemma existsbE : `[exists x, P x] = `[<exists x, P x>].
+Lemma xgetPN {T : choiceType} x0 (P : set T) : (forall x, ~ P x) -> xget x0 P = x0.
 Proof.
-apply/esym/is_true_inj; rewrite asboolE propeqE; apply: rwP; exact: existsbP.
+rewrite /xget; case: pselect => //= - [x p /(_ x)].
+by have /asboolP q := p => /(_ q).
 Qed.
 
-Lemma forallbP : reflect (forall x, P x) `[forall x, P x].
-Proof. exact: forallPP (fun x => @idP (P x)). Qed.
+Definition fun_of_rel {A} {B : choiceType} (f0 : A -> B) (f : A -> B -> Prop) :=
+  fun x => xget (f0 x) (f x).
 
-Lemma forallbE : `[forall x, P x] = `[<forall x, P x>].
-Proof.
-apply/esym/is_true_inj; rewrite asboolE propeqE; apply: rwP; exact: forallbP.
-Qed.
+Lemma fun_of_relP {A} {B : choiceType} (f : A -> B -> Prop) (f0 : A -> B) a :
+  nonempty (f a) ->  f a (fun_of_rel f0 f a).
+Proof. by move=> [b fab]; rewrite /fun_of_rel; apply: xgetP fab. Qed.
 
-End PredQuantifierCombinators.
-
-(* -------------------------------------------------------------------- *)
-Lemma existsp_asboolP {T} {P : T -> Prop} :
-  reflect (exists x : T, P x) `[exists x : T, `[<P x>]].
-Proof. exact: existsPP (fun x => @asboolP (P x)). Qed.
-
-Lemma forallp_asboolP {T} {P : T -> Prop} :
-  reflect (forall x : T, P x) `[forall x : T, `[<P x>]].
-Proof. exact: forallPP (fun x => @asboolP (P x)). Qed.
-
-Lemma forallp_asboolPn {T} {P : T -> Prop} :
-  reflect (forall x : T, ~ P x) (~~ `[<exists x : T, P x>]).
-Proof.
-apply: (iffP idP)=> [/asboolPn NP x Px|NP].
-by apply/NP; exists x. by apply/asboolP=> -[x]; apply/NP.
-Qed.
-
-Lemma existsp_asboolPn {T} {P : T -> Prop} :
-  reflect (exists x : T, ~ P x) (~~ `[<forall x : T, P x>]).
-Proof.
-apply: (iffP idP); last by case=> x NPx; apply/asboolPn=> /(_ x).
-move/asboolPn=> NP; apply/asboolP/negbNE/asboolPn=> h.
-by apply/NP=> x; apply/asboolP/negbNE/asboolPn=> NPx; apply/h; exists x.
-Qed.
-
-Lemma asbool_forallNb {T : Type} (P : pred T) :
-  `[< forall x : T, ~~ (P x) >] = ~~ `[< exists x : T, P x >].
-Proof.
-apply: (asbool_equiv_eqP forallp_asboolPn);
-  by split=> h x; apply/negP/h.
-Qed.
-
-Lemma asbool_existsNb {T : Type} (P : pred T) :
-  `[< exists x : T, ~~ (P x) >] = ~~ `[< forall x : T, P x >].
-Proof.
-apply: (asbool_equiv_eqP existsp_asboolPn);
-  by split=> -[x h]; exists x; apply/negP.
-Qed.
-
-(* -------------------------------------------------------------------- *)
-Definition xchooseb {T : choiceType} (P : pred T) (h : `[exists x, P x]) :=
-  xchoose (existsbP P h).
-
-Lemma xchoosebP {T : choiceType} (P : pred T) (h : `[exists x, P x]) :
-  P (xchooseb h).
-Proof. exact/xchooseP. Qed.
-
-(* -------------------------------------------------------------------- *)
-(* Notation "'exists_ view" := (existsPP (fun _ => view)) *)
-(*   (at level 4, right associativity, format "''exists_' view"). *)
-(* Notation "'forall_ view" := (forallPP (fun _ => view)) *)
-(*   (at level 4, right associativity, format "''forall_' view"). *)
-
-
-(* Section Quantifiers. *)
-
-(* Variables (T : Type) (rT : T -> eqType). *)
-(* Implicit Type (D P : rset T) (f : forall x, rT x). *)
-
-(* Lemma forallP P : reflect (forall x, P x) [forall x, P x]. *)
-(* Proof. *)
-(* About forallPP. *)
-(* have:= (forallPP (fun x => (asboolP (P x)))). *)
-(* exact: 'forall_asboolP. Qed. *)
-
-(* Lemma eqfunP f1 f2 : reflect (forall x, f1 x = f2 x) [forall x, f1 x == f2 x]. *)
-(* Proof. exact: 'forall_eqP. Qed. *)
-
-(* Lemma forall_inP D P : reflect (forall x, D x -> P x) [forall (x | D x), P x]. *)
-(* Proof. exact: 'forall_implyP. Qed. *)
-
-(* Lemma eqfun_inP D f1 f2 : *)
-(*   reflect {in D, forall x, f1 x = f2 x} [forall (x | x \in D), f1 x == f2 x]. *)
-(* Proof. by apply: (iffP 'forall_implyP) => eq_f12 x Dx; apply/eqP/eq_f12. Qed. *)
-
-(* Lemma existsP P : reflect (exists x, P x) [exists x, P x]. *)
-(* Proof. exact: 'exists_idP. Qed. *)
-
-(* Lemma exists_eqP f1 f2 : *)
-(*   reflect (exists x, f1 x = f2 x) [exists x, f1 x == f2 x]. *)
-
-(* Proof. exact: 'exists_eqP. Qed. *)
-
-(* Lemma exists_inP D P : reflect (exists2 x, D x & P x) [exists (x | D x), P x]. *)
-(* Proof. by apply: (iffP 'exists_andP) => [[x []] | [x]]; exists x. Qed. *)
-
-(* Lemma exists_eq_inP D f1 f2 : *)
-(*   reflect (exists2 x, D x & f1 x = f2 x) [exists (x | D x), f1 x == f2 x]. *)
-(* Proof. by apply: (iffP (exists_inP _ _)) => [] [x Dx /eqP]; exists x. Qed. *)
-
-(* Lemma eq_existsb P1 P2 : P1 =1 P2 -> [exists x, P1 x] = [exists x, P2 x]. *)
-(* Proof. by move=> eqP12; congr (_ != 0); apply: eq_card. Qed. *)
-
-(* Lemma eq_existsb_in D P1 P2 : *)
-(*     (forall x, D x -> P1 x = P2 x) -> *)
-(*   [exists (x | D x), P1 x] = [exists (x | D x), P2 x]. *)
-(* Proof. by move=> eqP12; apply: eq_existsb => x; apply: andb_id2l => /eqP12. Qed. *)
-
-(* Lemma eq_forallb P1 P2 : P1 =1 P2 -> [forall x, P1 x] = [forall x, P2 x]. *)
-(* Proof. by move=> eqP12; apply/negb_inj/eq_existsb=> /= x; rewrite eqP12. Qed. *)
-
-(* Lemma eq_forallb_in D P1 P2 : *)
-(*     (forall x, D x -> P1 x = P2 x) -> *)
-(*   [forall (x | D x), P1 x] = [forall (x | D x), P2 x]. *)
-(* Proof. *)
-(* by move=> eqP12; apply: eq_forallb => i; case Di: (D i); rewrite // eqP12. *)
-(* Qed. *)
-
-(* Lemma negb_forall P : ~~ [forall x, P x] = [exists x, ~~ P x]. *)
-(* Proof. by []. Qed. *)
-
-(* Lemma negb_forall_in D P : *)
-(*   ~~ [forall (x | D x), P x] = [exists (x | D x), ~~ P x]. *)
-(* Proof. by apply: eq_existsb => x; rewrite negb_imply. Qed. *)
-
-(* Lemma negb_exists P : ~~ [exists x, P x] = [forall x, ~~ P x]. *)
-(* Proof. by apply/negbLR/esym/eq_existsb=> x; apply: negbK. Qed. *)
-
-(* Lemma negb_exists_in D P : *)
-(*   ~~ [exists (x | D x), P x] = [forall (x | D x), ~~ P x]. *)
-(* Proof. by rewrite negb_exists; apply/eq_forallb => x; rewrite [~~ _]fun_if. Qed. *)
-
-(* End Quantifiers. *)
-
-(* -------------------------------------------------------------------- *)
-(* FIXME: to be moved                                                   *)
-Lemma imsetbP (T : Type) (U : eqType) (f : T -> U) v :
-  reflect (exists x, v = f x) (v \in [pred y | `[exists x, y == f x]]).
-Proof. by apply: (iffP (existsbP _))=> -[x] => [/eqP|] ->; exists x. Qed.
+Lemma fun_of_rel_uniq {A} {B : choiceType} (f : A -> B -> Prop) (f0 : A -> B) a :
+  is_prop (f a) -> forall b, f a b ->  fun_of_rel f0 f a = b.
+Proof. by move=> fa_prop b /xget_prop xgeteq; rewrite /fun_of_rel xgeteq. Qed.

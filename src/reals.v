@@ -33,12 +33,12 @@ Definition nonempty (E : pred R) :=
 
 (* Real upper bound set. *)
 Definition ub (E : pred R) : pred R :=
-  [pred z | `[forall y, (y \in E) ==> (y <= z)]].
+  [pred z | `[<forall y, y \in E -> y <= z>]].
 
 (* Real down set (i.e., generated order ideal) *)
 (* i.e. down E := { x | exists y, y \in E /\ x <= y} *)
 Definition down (E : pred R) : pred R :=
-  [pred x | `[exists y, (y \in E) && (x <= y)]].
+  [pred x | `[<exists2 y, y \in E & x <= y>]].
 
 (* Real set supremum existence condition. *)
 Definition has_ub  (E : pred R) := nonempty (ub E).
@@ -190,13 +190,10 @@ Lemma nonemptyP E : nonempty E <-> exists x, x \in E.
 Proof. by []. Qed.
 
 Lemma ubP E x : reflect (forall y, y \in E -> y <= x) (x \in ub E).
-Proof. by apply: (iffP (forallbP _))=> h y; apply/implyP/h. Qed.
+Proof. exact: asboolP. Qed.
 
 Lemma downP E x : reflect (exists2 y, y \in E & x <= y) (x \in down E).
-Proof.
-apply: (iffP (existsbP _))=> [[y /andP[]]|[y]].
-  by exists y. by exists y; apply/andP; split.
-Qed.
+Proof. exact: asboolP. Qed.
 
 Lemma has_ubP {E} : has_ub E <-> nonempty (ub E).
 Proof. by []. Qed.
@@ -221,15 +218,15 @@ Proof. by case: R E => ? [? ? []]. Qed.
 Section IsInt.
 Context {R : realType}.
 
-Definition Rint := [qualify a x : R | `[exists z, x == z%:~R]].
+Definition Rint := [qualify a x : R | `[<exists z, x = z%:~R>]].
 Fact Rint_key : pred_key Rint. Proof. by []. Qed.
 Canonical Rint_keyed := KeyedQualifier Rint_key.
 
-Lemma Rint_def x : (x \is a Rint) = (`[exists z, x == z%:~R]).
+Lemma Rint_def x : (x \is a Rint) = (`[<exists z, x = z%:~R>]).
 Proof. by []. Qed.
 
 Lemma RintP x : reflect (exists z, x = z%:~R) (x \in Rint).
-Proof. exact/(iffP (existsPP (fun x => eqP (y := x%:~R)))). Qed.
+Proof. exact: asboolP. Qed.
 
 Lemma RintC z : z%:~R \is a Rint.
 Proof. by apply/RintP; exists z. Qed.
@@ -277,16 +274,10 @@ Context {R : realType}.
 
 Implicit Types x y : R.
 
-Definition Rtoint (x : R) : int :=
-  if insub x : {? x | x \is a Rint} is Some Px then
-    xchooseb (tagged Px)
-  else 0.
+Definition Rtoint (x : R) := xget 0 [set n : int | x = n%:~R].
 
 Lemma RtointK (x : R): x \is a Rint -> (Rtoint x)%:~R = x.
-Proof.
-move=> Ix; rewrite /Rtoint insubT /= [RHS](eqP (xchoosebP Ix)).
-by congr _%:~R; apply/eq_xchoose.
-Qed.
+Proof. by move=> /asboolP /(xgetPex 0) /= xeq; symmetry; apply: xeq. Qed.
 
 Lemma Rtointz (z : int): Rtoint z%:~R = z.
 Proof. by apply/eqP; rewrite -(@eqr_int R) RtointK ?rpred_int. Qed.
@@ -355,7 +346,8 @@ Proof. by apply: (asbool_equiv_eq (nonemptyP _)). Qed.
 Lemma nonemptyPn {E} :
   ~ nonempty E <-> (forall x, x \notin E).
 Proof.
-by apply: asbool_eq_equiv; rewrite asbool_neg nonemptybP asbool_forallNb.
+apply: asbool_eq_equiv.
+ apply: asbool_eq_equiv; rewrite asbool_neg nonemptybP. asbool_forallNb.
 Qed.
 
 Lemma has_ubPn {E} :

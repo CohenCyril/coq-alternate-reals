@@ -34,19 +34,16 @@ Section PredEq.
 Variable (T : eqType).
 
 Definition pred_eq (p1 p2 : pred T) :=
-  `[forall x, p1 x == p2 x].
+  `[<forall x, p1 x = p2 x>].
 
 Lemma pred_eqP p1 p2 : reflect (p1 = p2) (pred_eq p1 p2).
-Proof.
-apply: (iffP (@forallbP _ _)) => [|->//].
-by move=> eq; apply/funext=> x; apply/eqP.
-Qed.
+Proof. by apply: (iffP (asboolP _)) => [eq|->//]; rewrite funeqE => x. Qed.
 
 Definition pred_eqMixin := EqMixin pred_eqP.
 Canonical pred_eqType := EqType (pred T) pred_eqMixin.
 
 Definition eqpP (p1 p2 : pred T) : (p1 = p2) <-> (p1 =1 p2).
-Proof. by split=> [->//|] eq; apply/eqP/forallbP=> x; apply/eqP. Qed.
+Proof. by split=> [->//|] eq; apply/eqP/asboolP=> x. Qed.
 End PredEq.
 
 (* -------------------------------------------------------------------- *)
@@ -60,10 +57,10 @@ Variable (T : eqType).
 
 Implicit Types p : pred T.
 
-Definition le p1 p2 := `[forall x, p1 x ==> p2 x].
+Definition le p1 p2 := `[<forall x, p1 x -> p2 x>].
 
 Lemma leP p1 p2 : reflect (forall x : T, p1 x -> p2 x) (le p1 p2).
-Proof. by apply/forallPP=> x; apply/implyP. Qed.
+Proof. by apply: asboolP. Qed.
 
 Lemma lepp : reflexive le.
 Proof. by move=> p; apply/leP. Qed.
